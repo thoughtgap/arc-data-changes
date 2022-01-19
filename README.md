@@ -15,6 +15,7 @@ After preparing the files for the Import folder, open Arc and go to *Settings > 
 
 This script is **not at all** user friendly. Right now you need to manipulate `index.ts` to your needs and run the script.
 
+Note: Be careful not to perform overlapping changes in multiple script runs. All changes are manipulated from the Backups. If you import a change into Arc, it will only appear in the backups after the next app backup is finished. To avoid conflicts, wait for the next backup to complete.
 
 ## Configuration
 Create a copy of `directories.json` named `directories.mine.json` and enter your directory paths.
