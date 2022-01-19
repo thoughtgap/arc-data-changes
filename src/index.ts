@@ -1,137 +1,80 @@
 import {arcBackupPlace, arcBackupSubDirectory} from "./arcJson";
+import * as arcBackupFiles from "./arcBackupFiles";
 
-var glob = require("glob");
-const fs = require('fs');
-var async = require("async");
-const readFiles = require('read-files-promise');
+const arcBackupManipulation = new arcBackupFiles.config();
 
-const arcarcBackupDir = "/Users/more/Library/Mobile Documents/iCloud~com~bigpaua~LearnerCoacher/Documents/Backups/";
-const arcImportDir = "/Users/more/Library/Mobile Documents/iCloud~com~bigpaua~LearnerCoacher/Documents/Import/";
+// Read all TimelineItems and Places and perform Actions on them
+arcBackupManipulation.readTimelineItemFiles().then(timelineItemsAndFilenamesArr => {
+    arcBackupManipulation.readPlaceFiles().then(placesAndFilenamesArr => {
 
-let globalPlacesAndFilenames: any[] = [];
-let globaltimelineItemsAndFilenames: any[] = [];
+        /*
+            You have access to all loaded timelineItemsAndFilenames as well as
+            placesAndFilenames here, which you can use for filtering.
+            
+            Manipulation via <type>Action<ActionDescription> function inside the class,
+            for example: 
+                placeActionRenamePlace
+                timelineItemActionMovePlace
+        */
+        
 
-// Index files
-const indexFiles = (type: arcBackupSubDirectory): string[] => {
-    const searchGlob = arcarcBackupDir+type+"/**/*.json";
-    console.log(`indexFiles(${type}) - searching ${searchGlob}`);
+        // Example: Rename a place
+        arcBackupManipulation.placeActionRenamePlace(
+            "CD2E231D-E17A-4BC2-AC29-E485E75C04A0",
+            "New Name of Place A"
+        );
 
-    let files = glob.sync(searchGlob, {});
-    console.log(`indexFiles(${type}) - Found ${files.length} backed up ${type} files`);
-    return files;
-};
+        // Example: Move all visits of Place A to Place B
+        arcBackupManipulation.timelineItemActionMovePlace(
+            timelineItemsAndFilenamesArr,
+            "1EA4B40C-9CA4-4903-AF52-C2F5B91879D9", // Place A, weird duplicate from 2019
+            "CD2E231D-E17A-4BC2-AC29-E485E75C04A0"  // Place B (main place)
+        );
 
-// Read Place Files
-let readPlaceFiles = (placeFileArr: string[]): Promise<arcBackupPlace[]> => {
-    console.log("readPlaceFiles()");
 
-    let places: arcBackupPlace[] = [];
-    let placesAndFilenames: any[] = [];
-    
-    return readFiles(placeFileArr, {encoding: 'utf8'}).then(fileContentArr => {
+        // Example: Find all duplicate places with the exact same name and assigned visits
+        var deduplicatedPlaces = [];
 
-        fileContentArr.map((fileContent, index) => {
-            let placeBackup = <arcBackupPlace> JSON.parse(fileContent);
+        placesAndFilenamesArr.forEach(place => {
+            
+            // Define Place name + Coordinates (exact match) as key
+            let key = `${place.content.name}_${place.content.center.latitude}_${place.content.center.longitude}`;
 
-            placesAndFilenames.push(
-                {
-                    path: placeFileArr[index],
-                    filename: placeFileArr[index].split('\\').pop().split('/').pop(),
-                    content: placeBackup
+            // If coordinates should be matched more losely, they can be rounded:
+            // let key = `${place.content.name}_${place.content.center.latitude.toFixed(3)}_${place.content.center.longitude.toFixed(3)}`;
+
+            // Search all timelineItems for visits, otherwise ignore the place.
+            if(timelineItemsAndFilenamesArr.filter(timelineItem => timelineItem.content.placeId == place.content.placeId).length > 0) {
+                if(!deduplicatedPlaces[key]) {
+                    deduplicatedPlaces[key] = [];
                 }
-            );
-            places.push(placeBackup);
-            //console.log(placeBackup.name);
-        })
+                deduplicatedPlaces[key].push(place);
+            }
+        });
 
-        console.log(`Read ${places.length} placeBackupFiles`);
-        return placesAndFilenames;  
-    });
-};
+        for (var key in deduplicatedPlaces) {
+            // Consider this place a duplicate if more than one places match the key
+            if(deduplicatedPlaces[key].length > 1) {
+                console.log(deduplicatedPlaces[key].length + '   ' + key);
 
-// Read Timeline Item Files
-let readTimelineItemFiles = (timelineItemArr: string[]): Promise<any[]> => {
-    console.log("readTimelineItemFiles()");
+                deduplicatedPlaces[key].forEach((dupePlace, i) => {
+                    console.log("   "+dupePlace.content.placeId + '   ' + dupePlace.content.name + ' (' +dupePlace.content.center.latitude +'  '+ dupePlace.content.center.longitude + ')' + (dupePlace.content.foursquareVenueId ? ' Foursquare '+dupePlace.content.foursquareVenueId : '') );
 
-    let timelineItemsAndFilenames: any[] = [];
+                    // Move all places to the first one
+                    if(i>0) {
 
-    return readFiles(timelineItemArr, {encoding: 'utf8'}).then(fileContentArr => {
-
-        fileContentArr.map((fileContent, index) => {
-            let timelineItemBackup = <any> JSON.parse(fileContent);
-
-            timelineItemsAndFilenames.push(
-                {
-                    path: timelineItemArr[index],
-                    filename: timelineItemArr[index].split('\\').pop().split('/').pop(),
-                    content: timelineItemBackup
-                }
-            );
-        })
-
-        console.log(`Read ${timelineItemsAndFilenames.length} timelineItemFiles`);
-        return timelineItemsAndFilenames;  
-    });
-};
-
-// Place Action: Rename a place
-const placeActionRenamePlace = (placeId: string, newName: string) => {
-    globalPlacesAndFilenames.filter(placesAndFilename => {
-        return placesAndFilename.content.placeId === placeId
-    })
-    .map(placeAndFilename => {
-        console.log(placeAndFilename);
-        placeAndFilename.content.name = newName;
-        saveForImport("Place",placeAndFilename);
-    })
-};
-
-
-// Timeline Item Action: Move a place
-const timelineItemActionMovePlace = (fromPlaceId: string, toPlaceId: string, from: Date = null, to: Date = null) => {
-
-    console.log(`timelineItemActionMovePlace(from = ${fromPlaceId}, to = ${toPlaceId})`);
-
-    let fromPlace: arcBackupPlace = globalPlacesAndFilenames.filter(placesAndFilename => placesAndFilename.content.placeId === fromPlaceId)[0].content;
-    let toPlace: arcBackupPlace = globalPlacesAndFilenames.filter(placesAndFilename => placesAndFilename.content.placeId === toPlaceId)[0].content;
-    console.log(`moving Place '${fromPlace.name}' to '${toPlace.name}'`);
-
-    let movedTimelineItems: number = 0;
-    
-    globaltimelineItemsAndFilenames.filter(timelineItemAndFilename => {
-        let filterDate = true;
-        if(from !== null && to !== null) {
-            let startDate = new Date(timelineItemAndFilename.content.startDate);
-            let endDate = new Date(timelineItemAndFilename.content.endDate);
-            //console.log(`${new Date(timelineItemAndFilename.content.startDate)} / ${timelineItemAndFilename.content.startDate} >= ${from} ${new Date(timelineItemAndFilename.content.startDate) <= from}`);
-            filterDate = (startDate >= from && endDate <= to);
+                        // Get Place ID of First one
+                        let targetPlaceId = deduplicatedPlaces[key][0].content.placeId;
+                        
+                        // Move
+                        arcBackupManipulation.timelineItemActionMovePlace(
+                            timelineItemsAndFilenamesArr,
+                            dupePlace.content.placeId,
+                            targetPlaceId
+                        );
+                    }
+                });
+            }
         }
-
-        return timelineItemAndFilename.content.placeId === fromPlaceId && filterDate;
-    })
-    .map(timelineItemAndFilename => {
-        timelineItemAndFilename.content.placeId = toPlaceId;
-        timelineItemAndFilename.content.manualPlace = true;
-        saveForImport("TimelineItem",timelineItemAndFilename);
-        movedTimelineItems++;
     });
-    console.log(`timelineItemActionMovePlace(from = ${fromPlaceId} '${fromPlace.name}', to = ${toPlaceId} '${toPlace.name}') - Found ${movedTimelineItems} matching timeline items (visits).`);
-
-}
-
-// Save the changed file to the import
-const saveForImport = (type: arcBackupSubDirectory, newObjAndFilename: any) => {
-
-    console.log(`saveForImport(type = ${type}, filename = ${newObjAndFilename.filename}) ${ type == "TimelineItem" ? newObjAndFilename.content.startDate+' - '+newObjAndFilename.content.endDate : ''}`);
-
-    // Update last saved property, remove milliseconds
-    newObjAndFilename.content.lastSaved = new Date().toISOString().slice(0, -5)+'Z';
-
-    let savePath = arcImportDir+type+'/'+newObjAndFilename.filename;
-    //console.log(`saveForImport(type = ${type}, filename = ${newObjAndFilename.filename}) - savePath = ${savePath}`);
-
-    fs.writeFile(savePath, JSON.stringify(newObjAndFilename.content, null, 4), function (err) {
-        if (err) return console.log(err);
-        // console.log(`saveForImport(type = ${type}, filename = ${newObjAndFilename.filename})`);
-    });
-};
+});
