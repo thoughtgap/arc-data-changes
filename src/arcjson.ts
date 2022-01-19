@@ -1,8 +1,7 @@
 /* Data types and structure for exported Arc Data.
 The types are useful for scripting, but currently not used for typechecking at runtime
-Analysis functionality is added via arcAnalysis module to keep structure + analysis function separated */
+*/
 
-import fs = require('fs');
 
 // Helper functions   
 function degreesToRadians(degrees: number) {
@@ -261,13 +260,13 @@ export class arcTimelineItem {
     }
 }
 
-interface arcPlace {
+export interface arcPlace {
     placeId: string,
     radius: {
         mean: number
         sd: number
     }
-    isHome: boolean
+    isHome?: boolean
     name: string
     center: {
         longitude: number
@@ -275,7 +274,11 @@ interface arcPlace {
     }
 }
 
-interface arcSample {
+export interface arcBackupPlace extends arcPlace {
+    lastSaved: Date
+}
+
+export interface arcSample {
     zAcceleration?: number,
     recordingState?: "recording",
     secondsFromGMT?: number // were only added recently
@@ -298,3 +301,5 @@ interface arcSample {
     xyAcceleration: number,
     coreMotionActivityType: string // "walking"
 }
+
+export type arcBackupSubDirectory = "TimelineItem" | "LocomotionSample" | "Note" | "Place" | "TimelineRangeSummary";
