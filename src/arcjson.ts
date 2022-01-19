@@ -303,3 +303,15 @@ export interface arcSample {
 }
 
 export type arcBackupSubDirectory = "TimelineItem" | "LocomotionSample" | "Note" | "Place" | "TimelineRangeSummary";
+
+export interface arcPlaceAndFileName {
+    path: string,
+    filename: string,
+    content: arcBackupPlace
+}
+
+export interface arcTimelineItemAndFileName {
+    path: string,
+    filename: string,
+    content: arcTimelineItem
+}
