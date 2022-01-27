@@ -128,7 +128,7 @@ export class config {
         /*  Export a modified object to a specific filename
             (for import into Arc) */
 
-        console.log(`saveForImport(type = ${type}, filename = ${newObjAndFilename.filename}) ${ type == "TimelineItem" ? newObjAndFilename.content.startDate+' - '+newObjAndFilename.content.endDate : ''}`);
+        //console.log(`saveForImport(type = ${type}, filename = ${newObjAndFilename.filename}) ${ type == "TimelineItem" ? newObjAndFilename.content.startDate+' - '+newObjAndFilename.content.endDate : ''}`);
 
         // Update last saved property, remove milliseconds
         newObjAndFilename.content.lastSaved = new Date().toISOString().slice(0, -5)+'Z';
@@ -190,5 +190,41 @@ export class config {
         });
         console.log(`timelineItemActionMovePlace(from = ${fromPlaceId} '${fromPlace.name}', to = ${toPlaceId} '${toPlace.name}') - Found ${movedTimelineItems} matching timeline items (visits).`);
     }
-}
 
+    // Place and TimelineItem Action: Move all Places to the first one, rename the consecutive places as DUPE_<placeName>
+    placeActionMergeAndRename(placeIDs: string[]) {
+        console.log(`I'm merging ${placeIDs.length} places now`);
+
+        placeIDs.forEach((placeId, i) => {
+            const numberVisits = this.timelineItemsAndFilenamesArr.filter(timelineItem => {
+                return timelineItem.content.placeId == placeId
+            }).length;
+
+            const place = this.placesAndFilenamesArr.filter(place => {
+                return place.content.placeId == placeId
+            })[0];
+
+            console.log(`${i}: ${place.content.placeId} ${place.content.center.latitude < 10 && place.content.center.latitude > 0 || place.content.center.latitude > -10 && place.content.center.latitude < 0 ? ' ' : ''}${place.content.center.latitude < 0 ? '' : ' '}${place.content.center.latitude.toFixed(20)} ${place.content.center.longitude < 10 && place.content.center.longitude > 0 || place.content.center.longitude > -10 && place.content.center.longitude < 0 ? ' ' : ''}${place.content.center.longitude < 0 ? '' : ' '}${place.content.center.longitude.toFixed(20)} ${place.content.foursquareVenueId ? place.content.foursquareVenueId : '                        '} ${numberVisits < 10 ? ' ':''}${numberVisits < 100 ? ' ':''}${numberVisits}V ${place.content.name}`);
+            
+            // Move all places to the first one
+            if(i>0) {
+
+                // Get Place ID of First one
+                let targetPlaceId = placeIDs[0];
+                                
+                // Move
+                this.timelineItemActionMovePlace(
+                    this.timelineItemsAndFilenamesArr,
+                    place.content.placeId,
+                    targetPlaceId
+                );
+
+                // Rename
+                this.placeActionRenamePlace(
+                    place.content.placeId,
+                    `DUPE_${i}_${place.content.name}`,
+                );
+            }
+        });
+    }
+}
