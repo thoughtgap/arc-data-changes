@@ -271,7 +271,8 @@ export interface arcPlace {
     center: {
         longitude: number
         latitude: number
-    }
+    },
+    foursquareVenueId?: string
 }
 
 export interface arcBackupPlace extends arcPlace {
