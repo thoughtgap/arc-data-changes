@@ -30,6 +30,15 @@ arcBackupManipulation.readTimelineItemFiles().then(timelineItemsAndFilenamesArr 
             "1EA4B40C-9CA4-4903-AF52-C2F5B91879D9", // Place A, weird duplicate from 2019
             "CD2E231D-E17A-4BC2-AC29-E485E75C04A0"  // Place B (main place)
         );
+        
+        // Example: Merge places and rename the duplicates.
+        // Moves all visits to the first place,
+        // then and renames all consequitive places to DUPE_<placeName>
+        arcBackupManipulation.placeActionMergeAndRename([
+            "5B306432-3CFF-40C8-BBAF-079FA1C3ABD7", // Leading Place which will get all visits
+            "F88D32A7-048F-4506-8EA2-E97BD849C83B", // Duplicate place, to be prefixed DUPE_
+            "F88D32A7-048F-4506-8EA2-E97BD849C83C"  // Another duplicate place, to be prefixed DUPE_
+        ]); 
 
 
         // Example: Find all duplicate places with the exact same name and assigned visits
